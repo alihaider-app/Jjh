@@ -1,0 +1,145 @@
+name: Build Android APK
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build Type'
+        required: true
+        default: 'debug'
+        type: choice
+        options:
+          - debug
+          - release
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-apk:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      -      name: Setup Node.js 22.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
+        cache: 'npm'
+        
+
+    
+      
+  
+      
+        
+
+      - name: Install Node Dependencies
+        run: |
+          npm ci --legacy-peer-deps || npm install --legacy-peer-deps
+
+      - name: Build Web Application & Sync Capacitor Android
+        run: |
+          npm run build:android
+
+      - name: Setup Java JDK 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'gradle'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Make Gradle Wrapper Executable
+        run: |
+          chmod +x android/gradlew
+
+      - name: Build Android APK with Gradle
+        id: build_gradle
+        run: |
+          cd android
+          BUILD_TYPE="${{ github.event.inputs.build_type || 'debug' }}"
+          echo "Building APK mode: $BUILD_TYPE"
+          
+          if [ "$BUILD_TYPE" = "release" ] && [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "Release keystore detected. Decoding keystore..."
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/release-keystore.jks
+            ./gradlew assembleRelease --stacktrace
+          else
+            echo "Building debug APK (Self-Signed / Installable on all Android devices)..."
+            ./gradlew assembleDebug --stacktrace
+          fi
+
+      - name: Prepare APK Artifacts & Checksums
+        id: prepare_artifacts
+        run: |
+          mkdir -p output-apk
+          
+          # Find generated APKs
+          APK_DEBUG=$(find android/app/build/outputs/apk/debug -name "*.apk" 2>/dev/null | head -n 1)
+          APK_RELEASE=$(find android/app/build/outputs/apk/release -name "*.apk" 2>/dev/null | head -n 1)
+          
+          if [ -n "$APK_DEBUG" ] && [ -f "$APK_DEBUG" ]; then
+            cp "$APK_DEBUG" output-apk/AI-Agent-Ali-debug.apk
+            echo "Copied debug APK: output-apk/AI-Agent-Ali-debug.apk"
+          fi
+
+          if [ -n "$APK_RELEASE" ] && [ -f "$APK_RELEASE" ]; then
+            cp "$APK_RELEASE" output-apk/AI-Agent-Ali-release.apk
+            echo "Copied release APK: output-apk/AI-Agent-Ali-release.apk"
+          fi
+
+          cd output-apk
+          for apk in *.apk; do
+            if [ -f "$apk" ]; then
+              sha256sum "$apk" > "${apk}.sha256"
+              echo "Generated checksum for $apk:"
+              cat "${apk}.sha256"
+              ls -lh "$apk"
+            fi
+          done
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AI-Agent-Ali-Android-APK
+          path: output-apk/*.apk
+          retention-days: 30
+
+      - name: Upload SHA256 Checksum Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AI-Agent-Ali-APK-Checksums
+          path: output-apk/*.sha256
+          retention-days: 30
+
+      - name: Publish GitHub Release (on tag v*)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            output-apk/*.apk
+            output-apk/*.sha256
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+# update

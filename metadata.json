@@ -1,0 +1,10 @@
+{
+  "name": "Remix AI Agent Ali",
+  "description": "Voice-First Executive Multi-Agent AI System with Tool Orchestration, Business Automation, Media Dubbing \u0026 Autonomous Action Workflows.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

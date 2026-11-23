@@ -1,0 +1,15 @@
+{
+	"appId": "com.aiagentali.app",
+	"appName": "AI Agent Ali",
+	"webDir": "dist",
+	"bundledWebRuntime": false,
+	"server": {
+		"androidScheme": "https",
+		"cleartext": true
+	},
+	"android": {
+		"backgroundColor": "#070a0f",
+		"allowMixedContent": true,
+		"captureInput": true
+	}
+}

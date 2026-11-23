@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">AI Agent Ali</string>
+    <string name="title_activity_main">AI Agent Ali</string>
+    <string name="package_name">com.aiagentali.app</string>
+    <string name="custom_url_scheme">com.aiagentali.app</string>
+</resources>
